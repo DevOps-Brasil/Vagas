@@ -1,0 +1,275 @@
+name: Classificar Localização e Salário
+on:
+  issues:
+    types: ["opened", "edited"]
+
+jobs:
+  classificar-localizacao:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Adicionar labels de localização
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const title = issue.title;
+
+            // Estados brasileiros
+            const estados = {
+              'AC': 'Acre', 'AL': 'Alagoas', 'AP': 'Amapá', 'AM': 'Amazonas',
+              'BA': 'Bahia', 'CE': 'Ceará', 'DF': 'Distrito Federal', 'ES': 'Espírito Santo',
+              'GO': 'Goiás', 'MA': 'Maranhão', 'MT': 'Mato Grosso', 'MS': 'Mato Grosso do Sul',
+              'MG': 'Minas Gerais', 'PA': 'Pará', 'PB': 'Paraíba', 'PR': 'Paraná',
+              'PE': 'Pernambuco', 'PI': 'Piauí', 'RJ': 'Rio de Janeiro', 'RN': 'Rio Grande do Norte',
+              'RS': 'Rio Grande do Sul', 'RO': 'Rondônia', 'RR': 'Roraima', 'SC': 'Santa Catarina',
+              'SP': 'São Paulo', 'SE': 'Sergipe', 'TO': 'Tocantins'
+            };
+
+            // Principais cidades (para labels específicas)
+            const cidadesImportantes = [
+              'São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Brasília', 
+              'Curitiba', 'Porto Alegre', 'Salvador', 'Recife', 'Fortaleza',
+              'Florianópolis', 'Campinas', 'Goiânia', 'Manaus', 'Vitória',
+              'Maringá', 'Joinville', 'Blumenau', 'Londrina', 'Uberlândia'
+            ];
+
+            // Busca localização no body (template)
+            const localizacaoMatch = body.match(/###\s*📍\s*Localização\s*\n\n(.+)/i);
+            const localizacao = localizacaoMatch ? localizacaoMatch[1] : '';
+            const texto = (title + ' ' + localizacao + ' ' + body).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+            const labelsParaAdicionar = new Set();
+
+            // Detecta se é internacional
+            const internacional = /internacional|global|worldwide|usa|estados unidos|europa|latam|america latina/i;
+            if (internacional.test(texto)) {
+              labelsParaAdicionar.add('Internacional');
+            }
+
+            // Detecta se aceita de qualquer lugar do Brasil
+            const brasilInteiro = /brasil inteiro|todo brasil|qualquer (lugar|estado|cidade)|anywhere in brazil/i;
+            if (brasilInteiro.test(texto)) {
+              labelsParaAdicionar.add('Brasil');
+            }
+
+            // Detecta estados
+            for (const [sigla, nome] of Object.entries(estados)) {
+              // Busca pela sigla (ex: SP, RJ) ou nome completo
+              const regexSigla = new RegExp(`\\b${sigla}\\b`, 'i');
+              const nomeNormalizado = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              const regexNome = new RegExp(nomeNormalizado, 'i');
+              
+              if (regexSigla.test(texto) || regexNome.test(texto)) {
+                labelsParaAdicionar.add(sigla);
+              }
+            }
+
+            // Detecta cidades importantes (para mapeamento de estado)
+            const cidadeEstado = {
+              'São Paulo': 'SP', 'Campinas': 'SP',
+              'Rio de Janeiro': 'RJ',
+              'Belo Horizonte': 'MG', 'Uberlândia': 'MG',
+              'Brasília': 'DF',
+              'Curitiba': 'PR', 'Londrina': 'PR', 'Maringá': 'PR',
+              'Porto Alegre': 'RS',
+              'Salvador': 'BA',
+              'Recife': 'PE',
+              'Fortaleza': 'CE',
+              'Florianópolis': 'SC', 'Joinville': 'SC', 'Blumenau': 'SC',
+              'Goiânia': 'GO',
+              'Manaus': 'AM',
+              'Vitória': 'ES'
+            };
+
+            for (const [cidade, estado] of Object.entries(cidadeEstado)) {
+              const cidadeNormalizada = cidade.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              if (texto.toLowerCase().includes(cidadeNormalizada.toLowerCase())) {
+                labelsParaAdicionar.add(estado);
+              }
+            }
+
+            // Adiciona labels
+            if (labelsParaAdicionar.size > 0) {
+              const labels = Array.from(labelsParaAdicionar);
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: labels
+              });
+              console.log(`✅ Labels de localização adicionadas: ${labels.join(', ')}`);
+            }
+
+  classificar-salario:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Adicionar label de faixa salarial
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+
+            // Busca salário no body (template)
+            const salarioMatch = body.match(/###\s*💰\s*Faixa Salarial\s*\n\n(.+)/i);
+            if (!salarioMatch || !salarioMatch[1] || salarioMatch[1].trim() === '_No response_') {
+              console.log('ℹ️ Faixa salarial não informada');
+              return;
+            }
+
+            const salarioTexto = salarioMatch[1].trim();
+
+            // Se é "a combinar", não adiciona label
+            if (/a combinar|negoci[aá]vel|competitivo/i.test(salarioTexto)) {
+              console.log('ℹ️ Salário a combinar');
+              return;
+            }
+
+            // Extrai valores numéricos
+            // Padrões: R$ 8.000, R$8000, 8.000, 8000, USD 3000, $ 3,000
+            const extrairValores = (texto) => {
+              const valores = [];
+              
+              // Padrão BRL: R$ 8.000 ou R$ 8000
+              const regexBRL = /R\$\s*([\d.,]+)/gi;
+              let match;
+              while ((match = regexBRL.exec(texto)) !== null) {
+                const valor = parseFloat(match[1].replace(/\./g, '').replace(',', '.'));
+                if (!isNaN(valor)) valores.push({ valor, moeda: 'BRL' });
+              }
+              
+              // Padrão USD: USD 3000, $ 3,000, US$ 3000
+              const regexUSD = /(?:USD|US\$|\$)\s*([\d.,]+)/gi;
+              while ((match = regexUSD.exec(texto)) !== null) {
+                const valor = parseFloat(match[1].replace(/,/g, '').replace('.', ''));
+                if (!isNaN(valor)) valores.push({ valor, moeda: 'USD' });
+              }
+              
+              // Padrão numérico simples (assume BRL)
+              if (valores.length === 0) {
+                const regexNum = /(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)/g;
+                while ((match = regexNum.exec(texto)) !== null) {
+                  const valor = parseFloat(match[1].replace(/\./g, '').replace(',', '.'));
+                  if (!isNaN(valor) && valor >= 1000) valores.push({ valor, moeda: 'BRL' });
+                }
+              }
+              
+              return valores;
+            };
+
+            const valores = extrairValores(salarioTexto);
+
+            if (valores.length === 0) {
+              console.log('ℹ️ Não foi possível extrair valores do salário');
+              return;
+            }
+
+            // Pega o maior valor (assume que é o teto da faixa)
+            // Converte USD para BRL se necessário (taxa aproximada)
+            const taxaUSD = 5.0; // Taxa aproximada USD -> BRL
+            let maiorValorBRL = 0;
+
+            for (const v of valores) {
+              const valorBRL = v.moeda === 'USD' ? v.valor * taxaUSD : v.valor;
+              if (valorBRL > maiorValorBRL) maiorValorBRL = valorBRL;
+            }
+
+            // Define faixas salariais
+            let labelSalario;
+            if (maiorValorBRL <= 5000) {
+              labelSalario = '💰 Até R$ 5k';
+            } else if (maiorValorBRL <= 8000) {
+              labelSalario = '💰 R$ 5k - 8k';
+            } else if (maiorValorBRL <= 12000) {
+              labelSalario = '💰 R$ 8k - 12k';
+            } else if (maiorValorBRL <= 16000) {
+              labelSalario = '💰 R$ 12k - 16k';
+            } else if (maiorValorBRL <= 20000) {
+              labelSalario = '💰 R$ 16k - 20k';
+            } else if (maiorValorBRL <= 25000) {
+              labelSalario = '💰 R$ 20k - 25k';
+            } else if (maiorValorBRL <= 35000) {
+              labelSalario = '💰 R$ 25k - 35k';
+            } else {
+              labelSalario = '💰 Acima de R$ 35k';
+            }
+
+            // Adiciona label de que tem salário informado
+            const labels = [labelSalario, '💵 Salário Informado'];
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: labels
+            });
+
+            console.log(`✅ Labels de salário adicionadas: ${labels.join(', ')}`);
+            console.log(`ℹ️ Maior valor detectado: R$ ${maiorValorBRL.toLocaleString('pt-BR')}`);
+
+  classificar-area:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Adicionar labels de área/tecnologia
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const title = issue.title.toLowerCase();
+            const texto = (title + ' ' + body).toLowerCase();
+
+            const labelsParaAdicionar = new Set();
+
+            // Áreas de atuação
+            const areas = {
+              'DevOps': /devops|dev\s*ops/i,
+              'SRE': /\bsre\b|site reliability|reliability engineer/i,
+              'Platform': /platform engineer|plataforma/i,
+              'Cloud': /cloud engineer|cloud architect|engenheiro de cloud/i,
+              'Infra': /infraestrutura|infrastructure|sysadmin|system admin/i,
+              'Security': /devsecops|security|segurança|appsec/i,
+              'Data': /data engineer|engenheiro de dados|dataops/i,
+              'FinOps': /finops|cloud cost|custo cloud/i
+            };
+
+            for (const [label, regex] of Object.entries(areas)) {
+              if (regex.test(texto)) {
+                labelsParaAdicionar.add(label);
+              }
+            }
+
+            // Tecnologias principais
+            const tecnologias = {
+              'AWS': /\baws\b|amazon web services/i,
+              'Azure': /\bazure\b|microsoft azure/i,
+              'GCP': /\bgcp\b|google cloud|gke/i,
+              'Kubernetes': /kubernetes|k8s|\beks\b|\baks\b|\bgke\b/i,
+              'Terraform': /terraform/i,
+              'Docker': /docker|container/i
+            };
+
+            for (const [label, regex] of Object.entries(tecnologias)) {
+              if (regex.test(texto)) {
+                labelsParaAdicionar.add(label);
+              }
+            }
+
+            // Adiciona labels
+            if (labelsParaAdicionar.size > 0) {
+              const labels = Array.from(labelsParaAdicionar);
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: labels
+              });
+              console.log(`✅ Labels de área/tecnologia adicionadas: ${labels.join(', ')}`);
+            }

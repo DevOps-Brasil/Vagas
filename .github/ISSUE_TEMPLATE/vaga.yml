@@ -1,0 +1,188 @@
+name: 🚀 Publicar Vaga
+description: Publique uma vaga de DevOps, SRE, Cloud ou Infraestrutura
+title: "[CARGO] Empresa - Localização"
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 👋 Bem-vindo ao DevOps Brasil Vagas!
+
+        Preencha o formulário abaixo para publicar sua vaga. Quanto mais detalhes, melhor!
+
+        > **Dica:** Vagas com faixa salarial recebem mais candidaturas qualificadas.
+
+  - type: input
+    id: cargo
+    attributes:
+      label: 🎯 Cargo
+      description: Nome do cargo/posição
+      placeholder: "Ex: DevOps Engineer, SRE, Platform Engineer, Cloud Architect"
+    validations:
+      required: true
+
+  - type: input
+    id: empresa
+    attributes:
+      label: 🏢 Empresa
+      description: Nome da empresa contratante
+      placeholder: "Ex: Empresa XYZ"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: nivel
+    attributes:
+      label: 📊 Nível de Experiência
+      description: Senioridade da vaga
+      options:
+        - Estágio
+        - Júnior
+        - Pleno
+        - Sênior
+        - Especialista/Staff
+        - Tech Lead
+        - Coordenação/Gerência
+    validations:
+      required: true
+
+  - type: dropdown
+    id: modalidade
+    attributes:
+      label: 🏠 Modalidade de Trabalho
+      description: Formato de trabalho
+      options:
+        - Remoto
+        - Híbrido
+        - Presencial
+    validations:
+      required: true
+
+  - type: input
+    id: localizacao
+    attributes:
+      label: 📍 Localização
+      description: Cidade/Estado (mesmo para remoto, informe a sede da empresa ou se aceita de qualquer lugar)
+      placeholder: "Ex: São Paulo/SP, Brasil inteiro, América Latina"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: contratacao
+    attributes:
+      label: 📝 Tipo de Contratação
+      description: Regime de contratação
+      options:
+        - CLT
+        - PJ
+        - CLT ou PJ
+        - Cooperado
+        - Freelancer
+        - Estágio
+    validations:
+      required: true
+
+  - type: input
+    id: salario
+    attributes:
+      label: 💰 Faixa Salarial
+      description: Faixa salarial (opcional, mas altamente recomendado!)
+      placeholder: "Ex: R$ 8.000 - R$ 12.000 | USD 3.000 - 5.000 | A combinar"
+    validations:
+      required: false
+
+  - type: textarea
+    id: descricao
+    attributes:
+      label: 📋 Descrição da Vaga
+      description: Descreva a vaga, responsabilidades e o dia a dia
+      placeholder: |
+        Descreva aqui:
+        - O que a pessoa vai fazer no dia a dia
+        - Projetos e desafios da área
+        - Time e estrutura
+    validations:
+      required: true
+
+  - type: textarea
+    id: requisitos
+    attributes:
+      label: ✅ Requisitos Técnicos
+      description: Conhecimentos e experiências necessárias
+      placeholder: |
+        Obrigatórios:
+        - Kubernetes, Docker
+        - CI/CD (Jenkins, GitLab CI, GitHub Actions)
+        - Cloud (AWS, GCP, Azure)
+        - Terraform, Ansible
+
+        Diferenciais:
+        - Certificações cloud
+        - Experiência com Service Mesh
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: beneficios
+    attributes:
+      label: 🎁 Benefícios
+      description: Liste os benefícios oferecidos
+      placeholder: |
+        - Vale Refeição/Alimentação
+        - Plano de Saúde
+        - PLR
+        - Gympass
+        - Horário flexível
+        - Budget para cursos/certificações
+    validations:
+      required: false
+
+  - type: textarea
+    id: stack
+    attributes:
+      label: 🛠️ Stack/Tecnologias
+      description: Principais tecnologias utilizadas
+      placeholder: |
+        - Cloud: AWS (EKS, EC2, RDS, S3)
+        - Containers: Kubernetes, Docker
+        - IaC: Terraform, Pulumi
+        - CI/CD: GitHub Actions, ArgoCD
+        - Observabilidade: Datadog, Prometheus, Grafana
+    validations:
+      required: false
+
+  - type: textarea
+    id: como_candidatar
+    attributes:
+      label: 📧 Como se Candidatar
+      description: Instruções para candidatura
+      placeholder: |
+        Envie seu currículo para: recrutamento@empresa.com
+        Ou candidate-se pelo link: https://empresa.com/vagas/123
+
+        Mencione que viu a vaga no DevOps Brasil!
+    validations:
+      required: true
+
+  - type: input
+    id: link_vaga
+    attributes:
+      label: 🔗 Link da Vaga (opcional)
+      description: Link externo para mais detalhes ou candidatura
+      placeholder: "https://empresa.com/careers/vaga-devops"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmacao
+    attributes:
+      label: ✔️ Confirmação
+      description: Por favor, confirme os itens abaixo
+      options:
+        - label: Esta é uma vaga real e ativa
+          required: true
+        - label: Li e concordo com as regras do repositório
+          required: true
+        - label: A vaga é relacionada à área de DevOps/SRE/Cloud/Infraestrutura
+          required: true
