@@ -42,9 +42,21 @@ jobs:
               }
             }
 
-            // Se faltam campos, adiciona comentário e label
+            // Marcador para identificar comentários do bot
+            const marcadorBot = '<!-- bot-validacao -->';
+
+            // Busca comentário existente do bot
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number
+            });
+            const comentarioBot = comments.data.find(c => c.body.includes(marcadorBot));
+
+            // Se faltam campos, cria ou atualiza comentário e label
             if (camposFaltando.length > 0) {
-              const mensagem = `## ⚠️ Informações Pendentes
+              const mensagem = `${marcadorBot}
+            ## ⚠️ Informações Pendentes
 
             Olá! Obrigado por publicar sua vaga no **DevOps Brasil Vagas**! 🚀
 
@@ -56,15 +68,25 @@ jobs:
 
             ---
             *Esta é uma mensagem automática do bot de validação.*`;
-              
-              // Adiciona comentário
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                body: mensagem
-              });
-              
+
+              if (comentarioBot) {
+                // Atualiza comentário existente
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comentarioBot.id,
+                  body: mensagem
+                });
+              } else {
+                // Cria novo comentário
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: mensagem
+                });
+              }
+
               // Adiciona label de pendente
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
@@ -72,11 +94,20 @@ jobs:
                 issue_number: issue.number,
                 labels: ['Pendente de informações']
               });
-              
+
               return;
             }
 
-            // Remove label de pendente se existir e todos campos estão OK
+            // Tudo OK — remove comentário do bot se existir
+            if (comentarioBot) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: comentarioBot.id
+              });
+            }
+
+            // Remove label de pendente se existir
             try {
               await github.rest.issues.removeLabel({
                 owner: context.repo.owner,
@@ -115,6 +146,7 @@ jobs:
               'Tech Lead': 'Tech Lead',
               'Coordenação/Gerência': 'Gestão'
             };
+            const todasLabelsNivel = new Set(Object.values(niveis));
 
             // Busca nível no body (template)
             const nivelMatch = body.match(/###\s*📊\s*Nível de Experiência\s*\n\n(.+)/i);
@@ -137,6 +169,21 @@ jobs:
                 labelNivel = 'Tech Lead';
               } else if (title.includes('estag') || title.includes('intern')) {
                 labelNivel = 'Estágio';
+              }
+            }
+
+            // Remove labels de nível antigas
+            const labelsAtuais = issue.labels.map(l => l.name);
+            for (const label of labelsAtuais) {
+              if (todasLabelsNivel.has(label) && label !== labelNivel) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    name: label
+                  });
+                } catch (e) { /* label não existe */ }
               }
             }
 
@@ -173,6 +220,7 @@ jobs:
               'Freelancer': 'Freelancer',
               'Estágio': 'Estágio'
             };
+            const todasLabelsContratacao = new Set(['CLT', 'PJ', 'Cooperado', 'Freelancer', 'Estágio']);
 
             // Busca contratação no body (template)
             const contratacaoMatch = body.match(/###\s*📝\s*Tipo de Contratação\s*\n\n(.+)/i);
@@ -193,6 +241,22 @@ jobs:
               const texto = (title + ' ' + body).toLowerCase();
               if (texto.includes('clt')) labels.push('CLT');
               if (texto.includes('pj') || texto.includes('pessoa jurídica')) labels.push('PJ');
+            }
+
+            // Remove labels de contratação antigas
+            const labelsNovas = new Set(labels);
+            const labelsAtuais = issue.labels.map(l => l.name);
+            for (const label of labelsAtuais) {
+              if (todasLabelsContratacao.has(label) && !labelsNovas.has(label)) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    name: label
+                  });
+                } catch (e) { /* label não existe */ }
+              }
             }
 
             if (labels.length > 0) {
@@ -225,6 +289,7 @@ jobs:
               'Híbrido': 'Híbrido',
               'Presencial': 'Presencial'
             };
+            const todasLabelsModalidade = new Set(Object.values(modalidades));
 
             // Busca modalidade no body (template)
             const modalidadeMatch = body.match(/###\s*🏠\s*Modalidade de Trabalho\s*\n\n(.+)/i);
@@ -243,6 +308,21 @@ jobs:
                 labelModalidade = 'Híbrido';
               } else if (title.includes('presencial') || title.includes('on-site') || title.includes('onsite')) {
                 labelModalidade = 'Presencial';
+              }
+            }
+
+            // Remove labels de modalidade antigas
+            const labelsAtuais = issue.labels.map(l => l.name);
+            for (const label of labelsAtuais) {
+              if (todasLabelsModalidade.has(label) && label !== labelModalidade) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    name: label
+                  });
+                } catch (e) { /* label não existe */ }
               }
             }
 

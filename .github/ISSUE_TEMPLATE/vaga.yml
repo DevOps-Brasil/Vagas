@@ -82,12 +82,23 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: moeda
+    attributes:
+      label: 💱 Moeda
+      description: Moeda do salário informado
+      options:
+        - BRL
+        - USD
+    validations:
+      required: false
+
   - type: input
     id: salario
     attributes:
       label: 💰 Faixa Salarial
       description: Faixa salarial (opcional, mas altamente recomendado!)
-      placeholder: "Ex: R$ 8.000 - R$ 12.000 | USD 3.000 - 5.000 | A combinar"
+      placeholder: "Ex: 8.000 - 12.000 | 3.000 - 5.000 | A combinar"
     validations:
       required: false
 
