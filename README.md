@@ -10,6 +10,8 @@ Repositório dedicado à divulgação de vagas para profissionais de **DevOps**,
 
 Este repositório funciona como um quadro de vagas para a comunidade DevOps brasileira. As vagas são publicadas como issues e automaticamente classificadas por nossos bots de triagem.
 
+Você também pode [pesquisar e filtrar as vagas da DevOps Brasil no openings.dev](https://openings.dev/communities/DevOps-Brasil/Vagas). Cada resultado continua levando à issue original neste repositório.
+
 > 💬 Tem dúvidas? Use as [Discussions](https://github.com/DevOps-Brasil/Vagas/discussions)!
 
 ### ✨ Funcionalidades Automáticas
